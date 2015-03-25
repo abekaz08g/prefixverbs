@@ -1,0 +1,11 @@
+{
+    "sourceDB":"dzeit",
+    "distDB":"erverben_141101_150228",
+    "classification":"labelledErverben.json",
+    "start":"2014-11-01",
+    "end":"2015-02-28",
+    "query":{
+        "lemma": "^er.+n"
+    },
+    "cond":{"_id": 1}
+}
