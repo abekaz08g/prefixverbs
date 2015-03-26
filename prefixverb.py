@@ -1,6 +1,6 @@
 #!-*- coding: utf-8 -*-
 
-from pymongo import MongoClient
+from pymongo import Connection
 from bson.objectid import ObjectId
 import json
 import datetime
@@ -38,7 +38,7 @@ def connect(dbname):
     戻り値:
         db: 接続するデータベース。
     """
-    c = MongoClient()
+    c = Connection('localhost', 27017)
     db = c[dbname]
     return db
 
@@ -113,8 +113,8 @@ class prefixverben:
         """
         db = connect(self.distDB)
         col = db[G[u'prefixverbs']]
-        f = open(self.classification)
-        pvdata = json.load(f)
+        f = open(self.classification).read().decode('UTF-8')
+        pvdata = json.loads(f)
         classificationType = pvdata[u'type']
         col.insert({u'type': classificationType})
         for key in pvdata[u'body']:
@@ -122,7 +122,7 @@ class prefixverben:
             for v in pvdata[u'body'][key]:
                 bulk.append({u'verb': v, u'class': key})
             col.insert(bulk)
-        f.close()
+        #f.close()
 
     def getDataFromCorpus(self):
         """
@@ -156,12 +156,13 @@ class prefixverben:
         """
         distDB = connect(self.distDB)
         sourceDB = connect(self.sourceDB)
-        metaData = getMetaData(sourceDB, self.start, self.end)
-        distDB[G[u'prefixverbs']][u'head'].insert(metaData)
+        #metaData = getMetaData(sourceDB, self.start, self.end)
+        #distDB[G[u'prefixverbs']][u'head'].insert(metaData)
         pvs = []
         for item in res:
             for l in item[u'lemma']:
-                sobj = self.query[u'lemma'].searc(l)
+                sobj = self.query[u'lemma'].search(l)
                 if sobj:
-                    pvs.append(sobj.group(0), item[u'_id'])
+                    print sobj.group(0)
+                    pvs.append((sobj.group(0), item[u'_id']))
         print len(pvs)

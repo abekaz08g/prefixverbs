@@ -1,5 +1,5 @@
 {
-    "sourceDB":"dzeit",
+    "sourceDB":"web",
     "distDB":"erverben_141101_150228",
     "classification":"labelledErverben.json",
     "start":"2014-11-01",
