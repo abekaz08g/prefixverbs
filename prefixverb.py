@@ -3,6 +3,14 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import json
+import datetime
+import re
+
+G = {
+    u'prefixverbs': u'prefixverbs',
+    u'sentenceCollection': u'dzeit',
+    u'documentCollection': u'docs'
+}
 
 
 def getObjectIdfromTime(gen_time):
@@ -15,7 +23,7 @@ def getObjectIdfromTime(gen_time):
     戻り値：
         oid: ObjectId
     """
-    tl = [int(item) for item in self.gen_time.split(u'-')]
+    tl = [int(item) for item in gen_time.split(u'-')]
     time = datetime.datetime(tl[0], tl[1], tl[2])
     oid = ObjectId.from_datetime(time)
     return oid
@@ -33,6 +41,41 @@ def connect(dbname):
     c = MongoClient()
     db = c[dbname]
     return db
+
+
+def getMetaData(DB, start, end):
+    """
+    用途：
+        コーパス検索時のヘッダ情報取得
+    引数：
+        DB: 新聞コーパスのデータベース
+        start: データ取得開始日
+        end: データ取得終了日
+    戻り値：
+        corpusStat: ドキュメント数、文の数、延べ語数、開始日、終了日
+    """
+    corpusStat = {
+        u'start': start,
+        u'end': end,
+    }
+    startId = getObjectIdfromTime(start)
+    endId = getObjectIdfromTime(end)
+    q = {
+        u'_id': {
+            u'$gt': startId,
+            u'$lt': endId
+        }
+    }
+    documents = DB[G[u'sentenceCollection']]['docs'].find(q).count()
+    res = DB[G[u'sentenceCollection']].find(q)
+    sentences = res.count()
+    words = 0
+    for item in res:
+        words += len(item[u'surface'])
+    corpusStat[u'documents'] = documents
+    corpusStat[u'sentences'] = sentences
+    corpusStat[u'words'] = words
+    return corpusStat
 
 
 class prefixverben:
@@ -69,7 +112,7 @@ class prefixverben:
         戻り値：なし
         """
         db = connect(self.distDB)
-        col = db.prefixverbs
+        col = db[G[u'prefixverbs']]
         f = open(self.classification)
         pvdata = json.load(f)
         classificationType = pvdata[u'type']
@@ -81,7 +124,7 @@ class prefixverben:
             col.insert(bulk)
         f.close()
 
-    def getData(self):
+    def getDataFromCorpus(self):
         """
         用途：
             コーパスから接頭辞動詞データを取得する
@@ -94,7 +137,31 @@ class prefixverben:
         eoid = getObjectIdfromTime(self.end)
         term = {u'$gt': soid, u'$lt': eoid}
         self.query[u'_id'] = term
+        self.query[u'lemma'] = re.compile(self.query[u'lemma'])
         db = connect(self.sourceDB)
-        col = db.dzeit
+        col = db[G[u'sentenceCollection']]
         res = col.find(self.query, self.cond)
         return res
+
+    def saveDataToSnapshot(self, res):
+        """
+        用途：
+            データの保存。
+            ヘッダ情報を取得し、保存。
+            接頭辞動詞データそのものの保存。
+        使用するクラス変数：
+            start, end, query, cond, distDB, sourceDB
+        戻り値：
+            なし
+        """
+        distDB = connect(self.distDB)
+        sourceDB = connect(self.sourceDB)
+        metaData = getMetaData(sourceDB, self.start, self.end)
+        distDB[G[u'prefixverbs']][u'head'].insert(metaData)
+        pvs = []
+        for item in res:
+            for l in item[u'lemma']:
+                sobj = self.query[u'lemma'].searc(l)
+                if sobj:
+                    pvs.append(sobj.group(0), item[u'_id'])
+        print len(pvs)

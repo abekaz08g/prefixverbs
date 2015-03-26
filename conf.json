@@ -7,5 +7,5 @@
     "query":{
         "lemma": "^er.+n"
     },
-    "cond":{"_id": 1}
+    "cond":{"_id": 1, "lemma": 1}
 }
