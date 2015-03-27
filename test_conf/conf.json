@@ -1,7 +1,7 @@
 {
     "sourceDB":"web",
     "distDB":"erverben_141101_150228",
-    "classification":"labelledErverben.json",
+    "classification":"test_conf/labelledErverben.json",
     "start":"2014-11-01",
     "end":"2015-02-28",
     "query":{
