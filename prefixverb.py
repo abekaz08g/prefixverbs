@@ -1,16 +1,10 @@
 #!-*- coding: utf-8 -*-
 
-from pymongo import Connection
+import pymongo
 from bson.objectid import ObjectId
 import json
 import datetime
 import re
-
-G = {
-    u'prefixverbs': u'prefixverbs',
-    u'sentenceCollection': u'dzeit',
-    u'documentCollection': u'docs'
-}
 
 
 def getObjectIdfromTime(gen_time):
@@ -38,12 +32,16 @@ def connect(dbname):
     戻り値:
         db: 接続するデータベース。
     """
-    c = Connection('localhost', 27017)
+    try:
+        c = pymongo.MongoClient()
+    except:
+        c = pymongo.Connection('localhost', 27017)
+
     db = c[dbname]
     return db
 
 
-def getMetaData(DB, start, end):
+def getMetaData(SentCol, DocCol, start, end):
     """
     用途：
         コーパス検索時のヘッダ情報取得
@@ -66,8 +64,8 @@ def getMetaData(DB, start, end):
             u'$lt': endId
         }
     }
-    documents = DB[G[u'sentenceCollection']]['docs'].find(q).count()
-    res = DB[G[u'sentenceCollection']].find(q)
+    documents = DocCol.find(q).count()
+    res = SentCol.find(q)
     sentences = res.count()
     words = 0
     for item in res:
@@ -93,15 +91,15 @@ class prefixverben:
         戻り値：
             なし
         """
-        f = open(conf)
-        confd = json.load(f)
-        self.sourceDB = confd['sourceDB']
-        self.distDB = confd[u'distDB']
-        self.classification = confd[u'classification']
-        self.start = confd[u'start']
-        self.end = confd[u'end']
-        self.query = confd[u'query']
-        self.cond = confd[u'cond']
+        self.SrcCol = conf['SrcCol']
+        self.DistCol = conf[u'DistCol']
+        self.DocCol = conf[u'DocCol']
+        self.HeadCol = conf[u'HeadCol']
+        self.classification = conf[u'classification']
+        self.start = conf[u'start']
+        self.end = conf[u'end']
+        self.query = conf[u'query']
+        self.cond = conf[u'cond']
 
     def setPVcol(self):
         """
@@ -111,18 +109,15 @@ class prefixverben:
             distDB, classification
         戻り値：なし
         """
-        db = connect(self.distDB)
-        col = db[G[u'prefixverbs']]
         f = open(self.classification).read().decode('UTF-8')
         pvdata = json.loads(f)
         classificationType = pvdata[u'type']
-        col.insert({u'type': classificationType})
+        self.DistCol.insert({u'type': classificationType})
         for key in pvdata[u'body']:
             bulk = []
             for v in pvdata[u'body'][key]:
                 bulk.append({u'verb': v, u'class': key})
-            col.insert(bulk)
-        #f.close()
+            self.DistCol.insert(bulk)
 
     def getDataFromCorpus(self):
         """
@@ -138,9 +133,7 @@ class prefixverben:
         term = {u'$gt': soid, u'$lt': eoid}
         self.query[u'_id'] = term
         self.query[u'lemma'] = re.compile(self.query[u'lemma'])
-        db = connect(self.sourceDB)
-        col = db[G[u'sentenceCollection']]
-        res = col.find(self.query, self.cond)
+        res = self.SrcCol.find(self.query, self.cond)
         return res
 
     def saveDataToSnapshot(self, res):
@@ -154,10 +147,8 @@ class prefixverben:
         戻り値：
             なし
         """
-        distDB = connect(self.distDB)
-        sourceDB = connect(self.sourceDB)
-        metaData = getMetaData(sourceDB, self.start, self.end)
-        distDB[G[u'prefixverbs']][u'head'].insert(metaData)
+        metaData = getMetaData(self.SrcCol, self.DocCol, self.start, self.end)
+        self.HeadCol.insert(metaData)
         i = 0
         for item in res:
             for l in item[u'lemma']:
@@ -167,7 +158,7 @@ class prefixverben:
                     verb = sobj.group(0)
                     q = {u'verb': verb}
                     opr = {u'$addToSet': {u'sids': item[u'_id']}}
-                    distDB[G[u'prefixverbs']].update(q, opr, True)
-        distDB[G[u'prefixverbs']][u'head'].update(
+                    self.DistCol.update(q, opr, True)
+        self.HeadCol.update(
             {}, {u'$set': {u'pvcount': i}}, False, True
         )
