@@ -1,7 +1,7 @@
 #!-*- coding: utf-8 -*-
 
 from prefixverb import connect
-from prefixverb import prefixverben
+from prefixverb import PrefixVerbs
 import os.path
 
 
@@ -45,7 +45,7 @@ conf = {
     u'cond': {u'_id': 1, u'lemma': 1}
 }
 
-pv = prefixverben(conf)
+pv = PrefixVerbs(conf)
 pv.setPVcol()
 res = pv.getDataFromCorpus()
 pv.saveDataToSnapshot(res)

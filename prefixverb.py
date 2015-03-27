@@ -76,7 +76,7 @@ def getMetaData(SentCol, DocCol, start, end):
     return corpusStat
 
 
-class prefixverben:
+class PrefixVerbs:
     """
     用途：
         接頭辞動詞を取得するためのクラス。
