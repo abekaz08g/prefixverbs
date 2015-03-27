@@ -156,13 +156,13 @@ class prefixverben:
         """
         distDB = connect(self.distDB)
         sourceDB = connect(self.sourceDB)
-        #metaData = getMetaData(sourceDB, self.start, self.end)
-        #distDB[G[u'prefixverbs']][u'head'].insert(metaData)
-        pvs = []
+        metaData = getMetaData(sourceDB, self.start, self.end)
+        distDB[G[u'prefixverbs']][u'head'].insert(metaData)
         for item in res:
             for l in item[u'lemma']:
                 sobj = self.query[u'lemma'].search(l)
                 if sobj:
-                    print sobj.group(0)
-                    pvs.append((sobj.group(0), item[u'_id']))
-        print len(pvs)
+                    verb = sobj.group(0)
+                    q = {u'verb': verb}
+                    opr = {u'$addToSet': {u'sids': item[u'_id']}}
+                    distDB[G[u'prefixverbs']].update(q, opr, True)
